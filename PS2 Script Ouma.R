@@ -118,3 +118,13 @@ ggplot(unemp, aes(x = date, y = unemployment_rate, color = region)) +
     color = "Region"
   ) +
   theme_minimal()
+# 5.2
+ggplot(unemp, aes(x = date, y = unemployment_rate)) +
+  geom_line(color = "steelblue") +
+  facet_wrap(~ region) +
+  labs(
+    title = "Monthly Unemployment Rate by Region, 1976-2026",
+    x = "Date",
+    y = "Unemployment Rate (%)"
+  ) +
+  theme_minimal()
