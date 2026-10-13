@@ -128,3 +128,33 @@ ggplot(unemp, aes(x = date, y = unemployment_rate)) +
     y = "Unemployment Rate (%)"
   ) +
   theme_minimal()
+# 5.3
+ggplot(unemp_summary, aes(x = fct_reorder(region, mean_rate), y = mean_rate)) +
+  geom_col(fill = "steelblue") +
+  labs(
+    title = "Average Unemployment Rate by Region, 1976-2026",
+    x = "Region",
+    y = "Mean Unemployment Rate (%)"
+  ) +
+  theme_minimal()
+# 5.4
+unemp_gap <- unemp |>
+  filter(region %in% c("Oregon", "United States")) |>
+  select(date, region, unemployment_rate) |>
+  pivot_wider(names_from = region, values_from = unemployment_rate) |>
+  mutate(gap = Oregon - `United States`)
+
+ggplot(unemp_gap, aes(x = date, y = gap)) +
+  geom_line(color = "steelblue") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    title = "Oregon Unemployment Rate Relative to the U.S., 1976-2026",
+    x = "Date",
+    y = "Oregon minus U.S. (percentage points)"
+  ) +
+  theme_minimal()
+
+# This plot shows the gap between Oregon's unemployment rate and the national rate
+# each month. Values above zero mean Oregon's unemployment is higher than the U.S.,
+# and values below zero mean it is lower. I chose it to see whether Oregon tends to
+# do better or worse than the nation, and when that changes.
