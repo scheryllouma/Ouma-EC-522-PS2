@@ -108,3 +108,13 @@ unemp_top_increases_no_covid <- unemp |>
 unemp_top_decreases_no_covid <- unemp |>
   filter(year(date) != 2020) |>
   slice_min(unemployment_rate_change, n = 5)
+# 5.1
+ggplot(unemp, aes(x = date, y = unemployment_rate, color = region)) +
+  geom_line() +
+  labs(
+    title = "Monthly Unemployment Rate by Region, 1976-2026",
+    x = "Date",
+    y = "Unemployment Rate (%)",
+    color = "Region"
+  ) +
+  theme_minimal()
