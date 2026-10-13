@@ -1,0 +1,42 @@
+---
+title: "Problem Set 2"
+author: "Scheryll Ouma"
+date: today
+format:
+  html:
+    toc: true
+    embed-resources: true
+---
+
+**GitHub repo:** <https://github.com/scherylllouma/Ouma-EC-522-PS2>
+
+```{r}
+#| label: setup
+#| include: false
+library(tidyquant)
+library(tidyverse)
+
+unemp_raw <- read_rds("data/unemp_raw.rds")
+
+unemp <- unemp_raw |>
+  rename(unemployment_rate = price) |>
+  mutate(
+    region = case_when(
+      symbol == "UNRATE" ~ "United States",
+      symbol == "ORUR"  ~ "Oregon",
+      symbol == "CAUR"  ~ "California",
+      symbol == "TXUR"  ~ "Texas",
+      symbol == "NYUR"  ~ "New York"
+    )
+  )
+```
+
+## Data
+
+This problem set uses monthly, seasonally adjusted unemployment rates for the United States, Oregon, California, Texas, and New York. The data come from FRED (the Federal Reserve Economic Data database, St. Louis Fed) and were downloaded with the `tidyquant` package. The sample runs from January 1976 to September 2026.
+
+```{r}
+#| label: data
+#| echo: false
+head(unemp)
+```
