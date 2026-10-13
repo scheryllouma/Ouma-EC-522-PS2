@@ -14,7 +14,8 @@ dir.create("data", showWarnings = FALSE)
 write_rds(unemp_raw, "data/unemp_raw.rds")
 
 
-3.2
+#3.2
+
 library(tidyquant)
 library(tidyverse)
 
@@ -32,7 +33,6 @@ library(tidyverse)
 
 unemp_raw = read_rds("data/unemp_raw.rds")
 
-4.1
 
 # 4.1
 unemp <- unemp_raw |>
@@ -46,7 +46,8 @@ unemp <- unemp_raw |>
       symbol == "NYUR"  ~ "New York"
     )
   )
-4.2
+# 4.2
+# Fill in missing Oct 2025 with Sep 2025 value within each region
 unemp <- unemp |>
   arrange(region, date) |>
   group_by(region) |>
@@ -58,3 +59,36 @@ unemp <- unemp |>
     )
   ) |>
   ungroup()
+
+# Month-over-month change within each region
+unemp <- unemp |>
+  arrange(region, date) |>
+  group_by(region) |>
+  mutate(unemployment_rate_change = unemployment_rate - lag(unemployment_rate)) |>
+  ungroup()
+
+# Observations from January 2015 onward
+unemp_recent <- unemp |>
+  filter(date >= as.Date("2015-01-01"))
+
+# Summary stats, whole sample
+unemp_summary <- unemp |>
+  group_by(region) |>
+  summarize(
+    mean_rate = mean(unemployment_rate, na.rm = TRUE),
+    min_rate  = min(unemployment_rate, na.rm = TRUE),
+    max_rate  = max(unemployment_rate, na.rm = TRUE)
+  )
+
+# Summary stats, 2015 onward
+unemp_recent_summary <- unemp_recent |>
+  group_by(region) |>
+  summarize(
+    mean_rate = mean(unemployment_rate, na.rm = TRUE),
+    min_rate  = min(unemployment_rate, na.rm = TRUE),
+    max_rate  = max(unemployment_rate, na.rm = TRUE)
+  )
+unemp |> filter(is.na(unemployment_rate))   # should now be 0 rows
+unemp |> filter(date == as.Date("2025-10-01"))   # same value as Sep 2025 in each region
+unemp_summary
+unemp_recent_summary
