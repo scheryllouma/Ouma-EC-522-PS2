@@ -92,3 +92,19 @@ unemp |> filter(is.na(unemployment_rate))   # should now be 0 rows
 unemp |> filter(date == as.Date("2025-10-01"))   # same value as Sep 2025 in each region
 unemp_summary
 unemp_recent_summary
+
+# 4.3
+unemp_top_increases <- unemp |>
+  slice_max(unemployment_rate_change, n = 5)
+
+unemp_top_decreases <- unemp |>
+  slice_min(unemployment_rate_change, n = 5)
+
+# 4.4
+unemp_top_increases_no_covid <- unemp |>
+  filter(year(date) != 2020) |>
+  slice_max(unemployment_rate_change, n = 5)
+
+unemp_top_decreases_no_covid <- unemp |>
+  filter(year(date) != 2020) |>
+  slice_min(unemployment_rate_change, n = 5)
