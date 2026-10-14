@@ -15,6 +15,7 @@ format:
 #| include: false
 library(tidyquant)
 library(tidyverse)
+library(knitr)
 
 unemp_raw <- read_rds("data/unemp_raw.rds")
 
@@ -31,7 +32,7 @@ unemp <- unemp_raw |>
   )
 ```
 
-## Data
+## 1. Data
 
 This problem set uses monthly, seasonally adjusted unemployment rates for the United States, Oregon, California, Texas, and New York. The data come from FRED (the Federal Reserve Economic Data database, St. Louis Fed) and were downloaded with the `tidyquant` package. The sample runs from January 1976 to September 2026.
 
@@ -40,3 +41,199 @@ This problem set uses monthly, seasonally adjusted unemployment rates for the Un
 #| echo: false
 head(unemp)
 ```
+
+## 2. Wrangling
+
+I filled the missing October 2025 observation (due to the government shutdown) with the September 2025 value in each region, then computed the month-over-month change in the unemployment rate. The tables below summarize the results.
+
+```{r}
+#| label: wrangle
+
+unemp <- unemp |>
+  arrange(region, date) |>
+  group_by(region) |>
+  mutate(
+    unemployment_rate = replace(
+      unemployment_rate,
+      date == as.Date("2025-10-01"),
+      unemployment_rate[date == as.Date("2025-09-01")]
+    )
+  ) |>
+  mutate(unemployment_rate_change = unemployment_rate - lag(unemployment_rate)) |>
+  ungroup()
+
+unemp_recent <- unemp |>
+  filter(date >= as.Date("2015-01-01"))
+
+unemp_summary <- unemp |>
+  group_by(region) |>
+  summarize(
+    mean_rate = mean(unemployment_rate, na.rm = TRUE),
+    min_rate  = min(unemployment_rate, na.rm = TRUE),
+    max_rate  = max(unemployment_rate, na.rm = TRUE)
+  )
+
+unemp_recent_summary <- unemp_recent |>
+  group_by(region) |>
+  summarize(
+    mean_rate = mean(unemployment_rate, na.rm = TRUE),
+    min_rate  = min(unemployment_rate, na.rm = TRUE),
+    max_rate  = max(unemployment_rate, na.rm = TRUE)
+  )
+
+unemp_top_increases_no_covid <- unemp |>
+  filter(year(date) != 2020) |>
+  slice_max(unemployment_rate_change, n = 5)
+
+unemp_top_decreases_no_covid <- unemp |>
+  filter(year(date) != 2020) |>
+  slice_min(unemployment_rate_change, n = 5)
+```
+
+```{r}
+#| label: takeaways
+#| include: false
+hi  <- unemp_summary |> slice_max(mean_rate, n = 1)
+lo  <- unemp_summary |> slice_min(mean_rate, n = 1)
+peak <- unemp_summary |> slice_max(max_rate, n = 1)
+hi_r <- unemp_recent_summary |> slice_max(mean_rate, n = 1)
+lo_r <- unemp_recent_summary |> slice_min(mean_rate, n = 1)
+top_inc <- unemp_top_increases_no_covid |> slice(1)
+top_dec <- unemp_top_decreases_no_covid |> slice(1)
+```
+
+**a. Summary statistics, full sample**
+
+Mean, minimum, and maximum unemployment rate (in percent) for each region, January 1976 to September 2026.
+
+```{r}
+#| label: tbl-summary
+#| echo: false
+kable(unemp_summary, digits = 2,
+      col.names = c("Region", "Mean (%)", "Min (%)", "Max (%)"))
+```
+
+Over the full sample, `r hi$region` has the highest average unemployment rate (`r round(hi$mean_rate, 2)`%) and `r lo$region` the lowest (`r round(lo$mean_rate, 2)`%). The highest rate recorded in any region was `r peak$max_rate`% in `r peak$region`.
+
+**b. Summary statistics, 2015 onward**
+
+The same statistics restricted to January 2015 and later.
+
+```{r}
+#| label: tbl-recent-summary
+#| echo: false
+kable(unemp_recent_summary, digits = 2,
+      col.names = c("Region", "Mean (%)", "Min (%)", "Max (%)"))
+```
+
+Since 2015, `r hi_r$region` has the highest average rate (`r round(hi_r$mean_rate, 2)`%) and `r lo_r$region` the lowest (`r round(lo_r$mean_rate, 2)`%). Restricting to this period excludes the high-unemployment recessions of the 1970s and 1980s, so the minimum and maximum columns reflect a much narrower range.
+
+**c. Largest monthly increases, excluding 2020**
+
+The five region-months (plus ties) with the largest one-month rise in the unemployment rate, in percentage points.
+
+```{r}
+#| label: tbl-top-increases
+#| echo: false
+unemp_top_increases_no_covid |>
+  select(region, date, unemployment_rate, unemployment_rate_change) |>
+  kable(digits = 2,
+        col.names = c("Region", "Date", "Rate (%)", "Change (pp)"))
+```
+
+Excluding 2020, the largest one-month increase was `r top_inc$unemployment_rate_change` percentage points in `r top_inc$region` in `r format(top_inc$date, "%B %Y")`. Increases of this size are associated with recessions, as unemployment tends to rise sharply when the economy contracts.
+
+**d. Largest monthly decreases, excluding 2020**
+
+The five region-months (plus ties) with the largest one-month drop in the unemployment rate, in percentage points.
+
+```{r}
+#| label: tbl-top-decreases
+#| echo: false
+unemp_top_decreases_no_covid |>
+  select(region, date, unemployment_rate, unemployment_rate_change) |>
+  kable(digits = 2,
+        col.names = c("Region", "Date", "Rate (%)", "Change (pp)"))
+```
+
+Excluding 2020, the largest one-month decrease was `r top_dec$unemployment_rate_change` percentage points in `r top_dec$region` in `r format(top_dec$date, "%B %Y")`. Check the date column: sharp drops often come right after sharp rises, as the economy recovers.
+
+## 3. Visualization
+
+**a. Monthly Unemployment Rate By Region**
+
+```{r}
+#| label: fig-line
+#| echo: false
+#| fig-cap: "Monthly unemployment rate by region, 1976-2026"
+ggplot(unemp, aes(x = date, y = unemployment_rate, color = region)) +
+  geom_line() +
+  labs(title = "Monthly Unemployment Rate by Region, 1976-2026",
+       x = "Date", y = "Unemployment Rate (%)", color = "Region") +
+  theme_minimal()
+```
+
+Figure 1 plots the monthly unemployment rate for all five regions on one set of axes. The regions move together, with rates rising during recessions and falling during expansions. The spike around 2020 is the COVID-19 shock, which is the sharpest rise in the sample.
+
+**b. Monthly Unemployment Rate for Each Region**
+
+```{r}
+#| label: fig-facet
+#| echo: false
+#| warning: false
+#| fig-height: 8
+#| fig-cap: "Unemployment rate, one panel per region"
+ggplot(unemp, aes(x = date, y = unemployment_rate)) +
+  geom_line(color = "steelblue") +
+  facet_wrap(~ region, ncol = 2, axes = "all_x") +
+  labs(
+    title = "Monthly Unemployment Rate by Region, 1976-2026",
+    x = "Date",
+    y = "Unemployment Rate (%)"
+  ) +
+  theme_minimal()
+```
+
+Figure 2 shows the same data as Figure 1 with a separate panel for each region and a shared y-axis. This makes it easier to compare each region's own history without overlapping lines.
+
+**c. Mean Unemployment Rate Per Region**
+
+```{r}
+#| label: fig-bar
+#| echo: false
+#| fig-cap: "Mean unemployment rate by region"
+ggplot(unemp_summary, aes(x = fct_reorder(region, mean_rate), y = mean_rate)) +
+  geom_col(fill = "steelblue") +
+  labs(title = "Average Unemployment Rate by Region, 1976-2026",
+       x = "Region", y = "Mean Unemployment Rate (%)") +
+  theme_minimal()
+```
+
+Figure 3 shows the mean unemployment rate for each region over the full sample, ordered from lowest to highest. `r hi$region` has the highest average and `r lo$region` the lowest.
+
+**d. Oregon vs. National Unemployment Rate**
+
+```{r}
+#| label: fig-gap
+#| echo: false
+#| warning: false
+#| fig-cap: "Oregon unemployment rate minus U.S. rate"
+unemp_gap <- unemp |>
+  filter(region %in% c("Oregon", "United States")) |>
+  select(date, region, unemployment_rate) |>
+  pivot_wider(names_from = region, values_from = unemployment_rate) |>
+  mutate(gap = Oregon - `United States`)
+
+ggplot(unemp_gap, aes(x = date, y = gap)) +
+  geom_line(color = "steelblue") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(title = "Oregon Unemployment Rate Relative to the U.S., 1976-2026",
+       x = "Date", y = "Oregon minus U.S. (percentage points)") +
+  theme_minimal()
+```
+
+Figure 4 plots the monthly gap between Oregon's unemployment rate and the national rate. Values above zero mean Oregon's rate is higher than the U.S. rate. Oregon was above the national rate in `r round(100 * mean(unemp_gap$gap > 0, na.rm = TRUE))`% of months. I chose this plot to see whether Oregon tends to do better or worse than the nation, and when that changes.
+
+## 4. Reflection
+
+The R and dplyr parts were quite easy once I understood the pipe and how `group_by()` works with `lag()`. What moslty confused me me up most was the workflow: I pasted R code into the Git Bash terminal instead of the R script, and pasting into the terminal added hidden characters that broke my GitHub remote URL. I also learned that a Quarto document runs in its own fresh R session, so every object it uses has to be created inside the `.qmd`. I now feel more comfortable with the commit-and-push routine (`git add`, `git commit`, `git push`) and with rendering a Quarto document to HTML.
